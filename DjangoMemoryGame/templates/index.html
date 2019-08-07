@@ -1,0 +1,82 @@
+
+{% block content %}
+
+<form action="" method="post">
+{% csrf_token %}
+    <ul id="ul-id">
+    </ul>
+
+    <br>
+    <label>Current Player: </label>
+    <label id="current-player"></label>
+    <br>
+    <input name="card_one">
+    <input name="card_two">
+    <input type="submit" value="Turn cards">
+    <br>
+    <br>
+    <label id="game-end" style="display: none">GAME OVER! </label>
+    <label id="winner"> </label>
+</form>
+
+{% endblock %}
+
+{% block script %}
+
+<script>
+    var form = document.getElementsByTagName("form")[0];
+    var cardOne = document.getElementsByName("card_one")[0];
+    var cardTwo = document.getElementsByName("card_two")[0];
+    var endpoint = 'ws://' + window.location.host + window.location.pathname
+    var socket = new WebSocket(endpoint)
+
+    socket.onopen = function(e){
+        console.log("open ", e)
+        form.addEventListener('submit', function(event) {
+            event.preventDefault()
+            var data = {
+                "card_one": cardOne.value,
+                "card_two": cardTwo.value
+            }
+            socket.send(JSON.stringify(data))
+        })
+    }
+
+    socket.onmessage = function(e){
+        console.log("message ", e)
+        var ul = document.getElementById("ul-id")
+        var currentPlayerLabel = document.getElementById("current-player")
+        var data = JSON.parse(e.data)
+        var currentPlayerName = data['current_player']
+        var cards = JSON.parse(data['data'])
+        var listChildren = document.querySelector("ul")
+        var child = listChildren.lastElementChild;
+
+        currentPlayerLabel.innerHTML = currentPlayerName
+
+        while (child) {
+            listChildren.removeChild(child);
+            child = listChildren.lastElementChild;
+        }
+
+        for (var i=0; i < cards.length; i++) {
+            var li = document.createElement("li");
+            li.setAttribute('id', i)
+            li.appendChild(document.createTextNode(cards[i]))
+            ul.appendChild(li)
+        }
+    }
+
+    socket.onerror = function(e){
+        console.log("error ", e)
+    }
+    socket.onclose = function(e){
+        console.log("close ", e)
+        var gameEndLabel = document.getElementById("game-end")
+        var winnerLabel = document.getElementById("winner")
+        var currentPlayerLabel = document.getElementById("current-player")
+        gameEndLabel.style.display = "inline"
+        winnerLabel.innerHTML = currentPlayerLabel.innerHTML + " WINS"
+    }
+</script>
+{% endblock %}
